@@ -1,10 +1,15 @@
+extern crate ev3dev_lang_rust;
+
+use ev3dev_lang_rust::{Ev3Button, Ev3Result};
+use ev3dev_lang_rust::sensors::{SensorPort, ColorSensor};
+// use ev3dev_lang_rust::motors::{LargeMotor, MotorPort};
+
 use std::thread::{sleep, spawn};
 use std::sync::{Arc, Mutex};
 use rand::Rng;
 use std::env;
 
 const SENSOR_ARRAY_SIZE: usize = 10;
-
 
 type RGB = (u8, u8, u8);
 
@@ -14,14 +19,16 @@ trait Sensor<T> {
 }
 
 #[derive(Debug)]
-struct ColorSensor {
-    value: Arc<Mutex<[Option<RGB>; SENSOR_ARRAY_SIZE]>>
+struct FbotColorSensor {
+    value: Arc<Mutex<[Option<RGB>; SENSOR_ARRAY_SIZE]>>,
+    sensor:ColorSensor,
 }
 
-impl ColorSensor {
-    fn new() -> Self {
-        ColorSensor {
-            value: Arc::new(Mutex::new([None; SENSOR_ARRAY_SIZE]))
+impl FbotColorSensor {
+    fn new(sensor_port: SensorPort) -> Self {
+        FbotColorSensor {
+            value: Arc::new(Mutex::new([None; SENSOR_ARRAY_SIZE])),
+            sensor: ColorSensor::get(sensor_port).unwrap(),
         }        
     }
 
@@ -43,21 +50,24 @@ impl ColorSensor {
     }
 }
 
-impl Sensor<RGB> for ColorSensor {
+impl Sensor<RGB> for FbotColorSensor {
     fn update_value(&self) {
         let value = self.value.clone();
+        self.sensor.set_mode_rgb_raw().unwrap();
 
         spawn(move || {
             let mut rng = rand::thread_rng();
 
             loop {
                 let mut locked_value = value.lock().unwrap();
-                let random_value = rng.gen_range(0..255);
 
                 for i in 0..SENSOR_ARRAY_SIZE-1 {
                     locked_value[i] = locked_value[i + 1];
                 }
-                let rgb: RGB = (random_value, random_value, random_value);
+
+                let rgb = self.sensor.get_rgb().unwrap();
+                let rgb: RGB = (rgb.0 as u8, rgb.1 as u8, rgb.2 as u8);
+
                 locked_value[SENSOR_ARRAY_SIZE-1] = Some(rgb);
 
                 drop(locked_value);
@@ -72,17 +82,8 @@ impl Sensor<RGB> for ColorSensor {
     }
 }
 
-
-
-
-fn main() {
+fn main() -> Ev3Result<()> {
     env::set_var("RUST_BACKTRACE", "1");
     
-    let sensor = ColorSensor::new();
-    sensor.update_value();
-
-    loop {
-        println!("{:?}", sensor.get_avg_value());
-        // sleep(std::time::Duration::from_millis(100));
-    }
+    Ok(())
 }
