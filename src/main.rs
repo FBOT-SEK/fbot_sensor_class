@@ -5,44 +5,24 @@ use std::env;
 
 const SENSOR_ARRAY_SIZE: usize = 10;
 
+
 type RGB = (u8, u8, u8);
 
+trait Sensor<T> {
+    fn update_value(&self);
+    fn get_raw_value(&self) -> [Option<T>; SENSOR_ARRAY_SIZE];
+}
+
 #[derive(Debug)]
-struct Sensor {
+struct ColorSensor {
     value: Arc<Mutex<[Option<RGB>; SENSOR_ARRAY_SIZE]>>
 }
 
-impl Sensor {
+impl ColorSensor {
     fn new() -> Self {
-        Sensor {
+        ColorSensor {
             value: Arc::new(Mutex::new([None; SENSOR_ARRAY_SIZE]))
         }        
-    }
-
-    fn update_value(&self) {
-        let value = self.value.clone();
-
-        spawn(move || {
-            let mut rng = rand::thread_rng();
-
-            loop {
-                let mut locked_value = value.lock().unwrap();
-                let random_value = rng.gen_range(0..255);
-
-                for i in 0..SENSOR_ARRAY_SIZE-1 {
-                    locked_value[i] = locked_value[i + 1];
-                }
-                locked_value[SENSOR_ARRAY_SIZE-1] = Some((random_value, random_value, random_value));
-
-                drop(locked_value);
-            }
-        });
-    }
-
-    fn get_raw_value(&self) -> [Option<RGB>; SENSOR_ARRAY_SIZE] {
-        let locked_value = self.value.lock().unwrap();
-
-        locked_value.clone()
     }
 
     fn get_avg_value(&self) -> RGB {
@@ -63,14 +43,46 @@ impl Sensor {
     }
 }
 
+impl Sensor<RGB> for ColorSensor {
+    fn update_value(&self) {
+        let value = self.value.clone();
+
+        spawn(move || {
+            let mut rng = rand::thread_rng();
+
+            loop {
+                let mut locked_value = value.lock().unwrap();
+                let random_value = rng.gen_range(0..255);
+
+                for i in 0..SENSOR_ARRAY_SIZE-1 {
+                    locked_value[i] = locked_value[i + 1];
+                }
+                let rgb: RGB = (random_value, random_value, random_value);
+                locked_value[SENSOR_ARRAY_SIZE-1] = Some(rgb);
+
+                drop(locked_value);
+            }
+        });
+    }
+
+    fn get_raw_value(&self) -> [Option<RGB>; SENSOR_ARRAY_SIZE] {
+        let locked_value = self.value.lock().unwrap();
+
+        locked_value.clone()
+    }
+}
+
+
+
+
 fn main() {
     env::set_var("RUST_BACKTRACE", "1");
     
-    let sensor = Sensor::new();
+    let sensor = ColorSensor::new();
     sensor.update_value();
 
     loop {
         println!("{:?}", sensor.get_avg_value());
-        sleep(std::time::Duration::from_millis(100));
+        // sleep(std::time::Duration::from_millis(100));
     }
 }
