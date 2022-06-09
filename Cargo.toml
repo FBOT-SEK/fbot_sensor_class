@@ -1,0 +1,11 @@
+[package]
+name = "sensor_color"
+version = "0.1.0"
+edition = "2021"
+
+# [profile.release]
+# lto = true
+
+[dependencies]
+rand = "0.8.5"
+# ev3dev-lang-rust = "0.12.0"
