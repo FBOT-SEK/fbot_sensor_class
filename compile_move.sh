@@ -1,2 +1,3 @@
 cargo build --release 
-scp ./target/armv5te-unknown-linux-musleabi/release/ev3dev-color-sensor ./programas
+scp ./target/armv5te-unknown-linux-musleabi/release/sensor_color ./programas
+scp ./target/armv5te-unknown-linux-musleabi/release/knn ./programas
